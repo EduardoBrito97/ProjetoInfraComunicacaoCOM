@@ -14,80 +14,88 @@ def CalculateCheckSum(message):
 		CheckSum = CheckSum + ord(char)
 	return str(CheckSum)
 
-def GetUserName(username):
-	return username
+def GetUserName():
+	return _username
 
 def GetAcknowledge():
-	return '@#!@!#!@!$!#!#@#!!' + '555'
+	return   _delimiter + '555'
 
 def GetSequenceNumber():
-	return '@#!@!#!@!$!#!#@#!!' + '222'
+	return _delimiter + '222'
 
 def GetChecksum(message):
-	return '@#!@!#!@!$!#!#@#!!' + CalculateCheckSum(message)
+	return _delimiter + CalculateCheckSum(message)
 
 def GetMessage(message):
-	return '@#!@!#!@!$!#!#@#!!' + message
+	return _delimiter + message
 
-def CreateMessage(username):
+def CreateMessage():
 	message = raw_input('Your message: ')
-	return GetUserName(username) + GetAcknowledge() + GetSequenceNumber() + GetChecksum(message) + GetMessage(message)
+	return GetUserName() + GetAcknowledge() + GetSequenceNumber() + GetChecksum(message) + GetMessage(message)
 
-def SendPackage (client, socket, username):
-	socket.sendto(CreateMessage(username), client)
+def CreatePackage (rcvdMessage):
+	rcvdPackage = Package()
+	rcvdPackage.UserName, rcvdPackage.Acknowledge, rcvdPackage.SequenceNumber, rcvdPackage.CheckSum, rcvdPackage.Message  = rcvdMessage.split(_delimiter)
+	return rcvdPackage
+
+def SendPackage (client):
+	_socket.sendto(CreateMessage(), client)
 
 def isCorrupt(rcvdPackage):
 	return rcvdPackage.CheckSum != CalculateCheckSum(rcvdPackage.Message)
 
-def TryAgain (socket, client):
-	socket.sendto(_ERROR, client)
-	return DecodifyMessage(ReceiveMessage(socket))
+def TryAgain (client):
+	_socket.sendto(_ERROR, client)
+	return DecodifyMessage(ReceiveMessage())
 
-def DecodifyMessage(rcvdMessage, socket, client):
-	rcvdPackage = Package()
-	rcvdPackage.UserName, rcvdPackage.Acknowledge, rcvdPackage.SequenceNumber, rcvdPackage.CheckSum, rcvdPackage.Message  = rcvdMessage.split("@#!@!#!@!$!#!#@#!!")
+def DecodifyMessage(rcvdMessage, client):
+	rcvdPackage = CreatePackage(rcvdMessage)
 
 	if isCorrupt(rcvdPackage):
-		rcvdPackage = TryAgain (socket, client)
-	
+		rcvdPackage = TryAgain (client)
+
 	return rcvdPackage
 
-def ReceiveMessage(socket):
-	rcvdDatagram, client = socket.recvfrom(1024)
-	rcvdPackage = DecodifyMessage(rcvdDatagram, socket, client)
+def PrintMessage(rcvdDatagram, client):
+	rcvdPackage = DecodifyMessage(rcvdDatagram, client)
 	print  rcvdPackage.UserName, " says: ", rcvdPackage.Message
+
+def ReceiveMessage():
+	rcvdDatagram, client = _socket.recvfrom(1024)
+	PrintMessage(rcvdDatagram, client)
 	return client
 
-def CallServer(username):
-	serverPort = 12000
-	serverSocket = socket.socket(socket.AF_INET,socket.SOCK_DGRAM)
-	serverSocket.bind(('',serverPort))
+def CallServer():
 	while 1:
 		print "Typing..."
-		client = ReceiveMessage(serverSocket)
-		SendPackage(client, serverSocket, username)
+		client = ReceiveMessage()
+		SendPackage(client)
 
-	serverSocket.close()
-
-def CallClient(username):
-	clientName = ''
-	clientPort = 12000
-	clientSocket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-	client = (clientName, clientPort)         
+def CallClient():
+	client = ('', _port)      
 	while 1:		
-		SendPackage(client, clientSocket, username)
-		ReceiveMessage(clientSocket)
+		SendPackage(client)
+		ReceiveMessage()
 
-	clientSocket.close()
+def AmIServer():
+	try:
+		_socket.bind(('', _port))
+		return 1
+
+	except Exception:
+		return 0
 
 #Program:
-Username = raw_input("What's your name? ")
+_username = raw_input("What's your name? ")
+_port = 12000
+_socket = socket.socket(socket.AF_INET,socket.SOCK_DGRAM)
+_delimiter = '@#!@!#!@!$!#!#@#!!'
 _ERROR = 'SYSTEM' + GetAcknowledge() + GetSequenceNumber() + GetChecksum('Something went wrong.') + GetMessage('Something went wrong.')
-try:
-	CallServer(Username)
-	
-except Exception:
-	CallClient(Username)
+
+if AmIServer():
+	CallServer()
+else:
+	CallClient()
 
 
 
