@@ -2,6 +2,7 @@
 import socket
 
 class Package():
+	ControlBit = 0
 	UserName = ''
 	Message = ''
 	Acknowledge = 0
@@ -13,9 +14,11 @@ def CalculateCheckSum(message):
 	for char in message:
 		CheckSum = CheckSum + ord(char)
 	return str(CheckSum)
+def GetControlBit():
+	return str(_control)
 
 def GetUserName():
-	return _username
+	return _delimiter + _username
 
 def GetAcknowledge():
 	return   _delimiter + '555'
@@ -29,17 +32,17 @@ def GetChecksum(message):
 def GetMessage(message):
 	return _delimiter + message
 
-def CreateMessage():
-	message = raw_input('Your message: ')
-	return GetUserName() + GetAcknowledge() + GetSequenceNumber() + GetChecksum(message) + GetMessage(message)
+def CreateMessage(message):
+	return GetControlBit() + GetUserName() + GetAcknowledge() + GetSequenceNumber() + GetChecksum(message) + GetMessage(message)
 
 def CreatePackage (rcvdMessage):
 	rcvdPackage = Package()
-	rcvdPackage.UserName, rcvdPackage.Acknowledge, rcvdPackage.SequenceNumber, rcvdPackage.CheckSum, rcvdPackage.Message  = rcvdMessage.split(_delimiter)
+	recvPackage.ControlBit, rcvdPackage.UserName, rcvdPackage.Acknowledge, rcvdPackage.SequenceNumber, rcvdPackage.CheckSum, rcvdPackage.Message  = rcvdMessage.split(_delimiter)
 	return rcvdPackage
 
 def SendPackage (client):
-	_socket.sendto(CreateMessage(), client)
+	message = raw_input('Your message: ')
+	_socket.sendto(CreateMessage(message), client)
 
 def isCorrupt(rcvdPackage):
 	return rcvdPackage.CheckSum != CalculateCheckSum(rcvdPackage.Message)
@@ -58,28 +61,43 @@ def DecodifyMessage(rcvdMessage, client):
 
 def PrintMessage(rcvdDatagram, client):
 	rcvdPackage = DecodifyMessage(rcvdDatagram, client)
+	if ord(rcvdPackage.ControlBit):
+		_senders.append(client)
 	print  rcvdPackage.UserName, " says: ", rcvdPackage.Message
 
 def ReceiveMessage():
 	rcvdDatagram, client = _socket.recvfrom(1024)
 	PrintMessage(rcvdDatagram, client)
-	return client
+	return [rcvdDatagram,client]
 
 def CallServer():
+	_senders = []
 	while 1:
 		print "Typing..."
 		client = ReceiveMessage()
-		SendPackage(client)
+		if client not in _senders:
+			_control = 1
+			for i in _senders:
+				_socket.sendto(CreateMessage(client), i)
+				_socket.sendto(i,client)
+			_senders.append(client)
+			_control = 0
+		else:
+			_control = 0
+		for i in _senders:
+			SendPackage(i)
 
 def CallClient():
-	client = ('', _port)      
-	while 1:		
-		SendPackage(client)
-		ReceiveMessage()
+	_senders = ['172.20.18.20']
+	#client = (_senders, _port)      
+	while 1:
+		for i in _senders:		
+			SendPackage()
+			ReceiveMessage()
 
 def AmIServer():
 	try:
-		_socket.bind(('', _port))
+		_socket.bind(('172.20.18.20', _port))
 		return 1
 
 	except Exception:
@@ -88,6 +106,8 @@ def AmIServer():
 #Program:
 _username = raw_input("What's your name? ")
 _port = 12000
+_control = 0
+_senders = []
 _socket = socket.socket(socket.AF_INET,socket.SOCK_DGRAM)
 _delimiter = '@#!@!#!@!$!#!#@#!!'
 _ERROR = 'SYSTEM' + GetAcknowledge() + GetSequenceNumber() + GetChecksum('Something went wrong.') + GetMessage('Something went wrong.')
@@ -96,7 +116,4 @@ if AmIServer():
 	CallServer()
 else:
 	CallClient()
-
-
-
 
