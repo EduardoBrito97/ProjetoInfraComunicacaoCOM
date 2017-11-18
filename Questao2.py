@@ -37,7 +37,15 @@ def CreateMessage(message):
 
 def CreatePackage (rcvdMessage):
 	rcvdPackage = Package()
-	recvPackage.ControlBit, rcvdPackage.UserName, rcvdPackage.Acknowledge, rcvdPackage.SequenceNumber, rcvdPackage.CheckSum, rcvdPackage.Message  = rcvdMessage.split(_delimiter)
+	controlBit = ''
+	ack = ''
+	seq = ''
+	check = ''
+	controlBit, rcvdPackage.UserName, ack, sqe, check, rcvdPackage.Message = rcvdMessage.split(_delimiter)
+	rcvd.ControlBit = ord(controlBit)
+	rcvd.Acknowledge = ord(ack)
+	rcvd.SequenceNumber = ord(seq)
+	rcvd.CheckSum = ord(check)
 	return rcvdPackage
 
 def SendPackage (client):
@@ -93,6 +101,7 @@ def CallClient():
 	while 1:
 		for i in _senders:		
 			SendPackage()
+			print "Typing..."
 			ReceiveMessage()
 
 def AmIServer():
