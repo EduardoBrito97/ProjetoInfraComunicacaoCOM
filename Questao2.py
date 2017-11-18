@@ -68,7 +68,7 @@ def PrintMessage(rcvdDatagram, client):
 def ReceiveMessage():
 	rcvdDatagram, client = _socket.recvfrom(1024)
 	PrintMessage(rcvdDatagram, client)
-	return [rcvdDatagram,client]
+	return client
 
 def CallServer():
 	_senders = []
@@ -77,10 +77,10 @@ def CallServer():
 		client = ReceiveMessage()
 		if client not in _senders:
 			_control = 1
-			for i in _senders:
-				_socket.sendto(CreateMessage(client), i)
-				_socket.sendto(i,client)
-			_senders.append(client)
+			for contact in _senders:
+				if contact != client:
+					_socket.sendto(CreateMessage(client), contact)
+					_socket.sendto(CreateMessage(contact),client)
 			_control = 0
 		else:
 			_control = 0
