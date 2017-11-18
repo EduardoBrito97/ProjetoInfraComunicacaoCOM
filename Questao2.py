@@ -2,7 +2,7 @@
 import socket
 
 class Package():
-	ControlBit = 0
+	ControlBit = ''
 	UserName = ''
 	Message = ''
 	Acknowledge = 0
@@ -15,13 +15,15 @@ def CalculateCheckSum(message):
 		CheckSum = CheckSum + ord(char)
 	return str(CheckSum)
 def GetControlBit():
+	global _control
+	print str(_control)
 	return str(_control)
 
 def GetUserName():
 	return _delimiter + _username
 
 def GetAcknowledge():
-	return   _delimiter + '555'
+	return  _delimiter + '555'
 
 def GetSequenceNumber():
 	return _delimiter + '222'
@@ -42,14 +44,13 @@ def CreatePackage (rcvdMessage):
 	seq = ''
 	check = ''
 	controlBit, rcvdPackage.UserName, ack, sqe, check, rcvdPackage.Message = rcvdMessage.split(_delimiter)
-	rcvd.ControlBit = ord(controlBit)
-	rcvd.Acknowledge = ord(ack)
-	rcvd.SequenceNumber = ord(seq)
-	rcvd.CheckSum = ord(check)
+	rcvdPackage.ControlBit = controlBit
+	rcvdPackage.Acknowledge = ack
+	rcvdPackage.SequenceNumber = seq
+	rcvdPackage.CheckSum = check
 	return rcvdPackage
 
-def SendPackage (client):
-	message = raw_input('Your message: ')
+def SendPackage (message,client):
 	_socket.sendto(CreateMessage(message), client)
 
 def isCorrupt(rcvdPackage):
@@ -68,39 +69,51 @@ def DecodifyMessage(rcvdMessage, client):
 	return rcvdPackage
 
 def PrintMessage(rcvdDatagram, client):
+	global _senders
 	rcvdPackage = DecodifyMessage(rcvdDatagram, client)
-	if ord(rcvdPackage.ControlBit):
-		_senders.append(client)
+	if rcvdPackage.ControlBit == '1':
+		print 'carai ' + rcvdPackage.Message
+		aux, aux2 = rcvdPackage.Message.split(',')
+		aux = aux[2:len(aux)-1]
+		aux2 = int(aux[:len(aux2)-1])
+		_senders.append((aux,aux2))
 	print  rcvdPackage.UserName, " says: ", rcvdPackage.Message
 
 def ReceiveMessage():
 	rcvdDatagram, client = _socket.recvfrom(1024)
+	print 'A porra do client'+ str(client)
 	PrintMessage(rcvdDatagram, client)
 	return client
 
 def CallServer():
+	global _control
+	global _senders
 	_senders = []
 	while 1:
 		print "Typing..."
 		client = ReceiveMessage()
 		if client not in _senders:
 			_control = 1
+			_senders.append(client)
 			for contact in _senders:
 				if contact != client:
-					_socket.sendto(CreateMessage(client), contact)
-					_socket.sendto(CreateMessage(contact),client)
+					_socket.sendto(CreateMessage(str(client)), contact)
+					_socket.sendto(CreateMessage(str(contact)), client)
 			_control = 0
 		else:
 			_control = 0
+		message = raw_input('Your message: ')
 		for i in _senders:
-			SendPackage(i)
+			SendPackage(message,i)
 
 def CallClient():
-	_senders = ['172.20.18.20']
+	global _senders
+	_senders = [('172.20.18.20',_port)]
 	#client = (_senders, _port)      
 	while 1:
+		message = raw_input('Your message: ')
 		for i in _senders:		
-			SendPackage()
+			SendPackage(message,i)
 			print "Typing..."
 			ReceiveMessage()
 
