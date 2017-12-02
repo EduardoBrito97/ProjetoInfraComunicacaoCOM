@@ -1,5 +1,7 @@
 # -*- coding: utf-8 -*-
 import socket
+import threading
+import time
 
 class Package():
 	ControlBit = ''
@@ -69,30 +71,16 @@ def DecodifyMessage(rcvdMessage, client):
 	return rcvdPackage
 
 def PrintMessage(rcvdDatagram, client):
+	global new_cont
 	global _senders
+	global _socket
 	rcvdPackage = DecodifyMessage(rcvdDatagram, client)
 	if rcvdPackage.ControlBit == '1':
-		print 'carai ' + rcvdPackage.Message
 		aux, aux2 = rcvdPackage.Message.split(',')
 		aux = aux[2:len(aux)-1]
 		aux2 = int(aux[:len(aux2)-1])
 		_senders.append((aux,aux2))
-	print  rcvdPackage.UserName, " says: ", rcvdPackage.Message
-
-def ReceiveMessage():
-	rcvdDatagram, client = _socket.recvfrom(1024)
-	print 'A porra do client'+ str(client)
-	PrintMessage(rcvdDatagram, client)
-	return client
-
-def CallServer():
-	global _control
-	global _senders
-	_senders = []
-	while 1:
-		print "Typing..."
-		client = ReceiveMessage()
-		if client not in _senders:
+	if client not in _senders:
 			_control = 1
 			_senders.append(client)
 			for contact in _senders:
@@ -100,29 +88,41 @@ def CallServer():
 					_socket.sendto(CreateMessage(str(client)), contact)
 					_socket.sendto(CreateMessage(str(contact)), client)
 			_control = 0
-		else:
-			_control = 0
+	print  rcvdPackage.UserName, " says: ", rcvdPackage.Message
+
+def ReceiveMessage(name,s):
+	while True:
+		rcvdDatagram, client = s.recvfrom(1024)
+		PrintMessage(rcvdDatagram, client)
+
+def CallServer():
+	global _control
+	global _senders
+	while 1:
 		message = raw_input('Your message: ')
 		for i in _senders:
 			SendPackage(message,i)
 
-def CallClient():
+def sendClient():
 	global _senders
 	_senders = [('172.20.18.20',_port)]
 	#client = (_senders, _port)      
 	while 1:
-		message = raw_input('Your message: ')
+		message = raw_input()
 		for i in _senders:		
 			SendPackage(message,i)
-			print "Typing..."
 			ReceiveMessage()
 
 def AmIServer():
+	global _socket
+	global _senders
 	try:
 		_socket.bind(('172.20.18.20', _port))
 		return 1
 
 	except Exception:
+
+		_senders = [('172.20.18.20',_port)]
 		return 0
 
 #Program:
@@ -133,9 +133,13 @@ _senders = []
 _socket = socket.socket(socket.AF_INET,socket.SOCK_DGRAM)
 _delimiter = '@#!@!#!@!$!#!#@#!!'
 _ERROR = 'SYSTEM' + GetAcknowledge() + GetSequenceNumber() + GetChecksum('Something went wrong.') + GetMessage('Something went wrong.')
+new_cont = 0
+conversation = raw_input("Do you want start a conversation(y/n)")
+
+threading.Thread(target=ReceiveMessage, args=("rec",_socket)).start()
 
 if AmIServer():
 	CallServer()
 else:
-	CallClient()
+	CallServer()
 
