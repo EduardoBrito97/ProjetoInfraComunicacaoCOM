@@ -71,14 +71,14 @@ def DecodifyMessage(rcvdMessage, client):
 	return rcvdPackage
 
 def PrintMessage(rcvdDatagram, client):
-	global new_cont
 	global _senders
+	global _control
 	global _socket
 	rcvdPackage = DecodifyMessage(rcvdDatagram, client)
 	if rcvdPackage.ControlBit == '1':
 		aux, aux2 = rcvdPackage.Message.split(',')
 		aux = aux[2:len(aux)-1]
-		aux2 = int(aux[:len(aux2)-1])
+		aux2 = int(aux2[:len(aux2)-1])
 		_senders.append((aux,aux2))
 	if client not in _senders:
 			_control = 1
@@ -96,22 +96,13 @@ def ReceiveMessage(name,s):
 		PrintMessage(rcvdDatagram, client)
 
 def CallServer():
-	global _control
 	global _senders
 	while 1:
-		message = raw_input('Your message: ')
+		message = raw_input()
+		print str(len(_senders))
 		for i in _senders:
 			SendPackage(message,i)
 
-def sendClient():
-	global _senders
-	_senders = [('172.20.18.20',_port)]
-	#client = (_senders, _port)      
-	while 1:
-		message = raw_input()
-		for i in _senders:		
-			SendPackage(message,i)
-			ReceiveMessage()
 
 def AmIServer():
 	global _socket
@@ -138,8 +129,6 @@ conversation = raw_input("Do you want start a conversation(y/n)")
 
 threading.Thread(target=ReceiveMessage, args=("rec",_socket)).start()
 
-if AmIServer():
-	CallServer()
-else:
-	CallServer()
+AmIServer()
+CallServer()
 
