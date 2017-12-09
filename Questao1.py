@@ -35,59 +35,85 @@ def Login():
 			rcvMessage = TryToReg()
 		else:
 			rcvMessage = TryToLog()
+	_folder = _username
 	return 0
 
 
 def PrintMenu():
-	print('Press 1 to Add File')
-	print('Press 2 to Edit File')
-	print('Press 3 to Remove File')
-	print('Press 4 to Move File')
-	print('Press 5 to Add Folder')
-	print('Press 6 to Remove Folder')
-	print('Press 7 to Share This Folder')
-	print('Press 8 to End Connection')
+	print('Press 1 to Upload a File')
+	print('Press 2 to Download a File')
+	print('Press 3 to Edit File')
+	print('Press 4 to Remove File')
+	print('Press 5 to Move File')
+	print('Press 6 to Add Folder')
+	print('Press 7 to Remove Folder')
+	print('Press 8 to Share This Folder')
+	print('Press 9 to End Connection')
 
 def ClientCommandActionsAndString(command):
 	global _stillConnected, _socket, _folder, _delimiter
 	if (command ==  '1'):
 		realCommand = 'addFile'
 		SendMessage(realCommand, _socket)
-
+		fileName = raw_input ('What is the file name? ')
+		SendMessage(fileName, _socket)
+		f = open(fileName,'rb')
+		l = f.read(1024)
+		while (l):
+   			_socket.send(l)
+   			print('Sent ',repr(l))
+   			l = f.read(1024)
+		f.close()
+		return 0
+	
 	elif (command ==  '2'):
-		realCommand ='editFile'
+		realCommand ='downloadFile'
 		SendMessage(realCommand, _socket)
 
 	elif (command ==  '3'):
-		realCommand ='removeFile'
+		realCommand ='editFile'
 		SendMessage(realCommand, _socket)
+		oldFile = raw_input('Which file you want to rename? ')
+		SendMessage(oldFile, _socket)
+		newFile = raw_input('What is the new name?')
+		SendMessage(newFile, _socket)
 
 	elif (command ==  '4'):
-		realCommand ='moveFile'
+		realCommand ='removeFile'
 		SendMessage(realCommand, _socket)
+		removeFile = raw_input('Which file you want to remove? ')
+		SendMessage(removeFile, _socket)
 
 	elif (command ==  '5'):
+		realCommand ='moveFile'
+		SendMessage(realCommand, _socket)
+		fileName = raw_input('Which file you want to move? ')
+		SendMessage(fileName, _socket)
+		newFolder = raw_input('Where do you want to move? ')
+		SendMessage(newFolder, _socket)
+
+	elif (command ==  '6'):
 		realCommand ='addFolder'
 		SendMessage(realCommand, _socket)
 		folder = raw_input('What is the name of the folder you want to add? ')
 		message = folder + _delimiter + _folder
 		SendMessage(message, _socket)
 
-	elif (command ==  '6'):
+	elif (command ==  '7'):
 		realCommand = 'removeFolder'
 		SendMessage(realCommand, _socket)
 		folder = raw_input('What folder you want to remove? ')
 		message = folder + _delimiter + _folder
 		SendMessage(message, _socket)
 
-	elif (command ==  '7'):
+	elif (command ==  '8'):
 		realCommand = 'shareFolder'
 		SendMessage(realCommand, _socket)
 		user = raw_input('Who you want to share with? ')
 		message = user + _delimiter + _folder
 		SendMessage(message, _socket)
 
-	elif (command ==  '8'):
+	elif (command ==  '9'):
 		_stillConnected = 0
 		realCommand = 'endConnection'
 		SendMessage(realCommand, _socket)
@@ -127,19 +153,56 @@ def AuthorizeFolder():
 	return 0
 
 def AddFile():
-	print(_username + ' added a file.')
+	global _connectionSocket, _delimiter, _folder
+	fileName = ReceiveMessage(_connectionSocket)
+	data = _connectionSocket.recv(1024)
+	with open(_folder + '/' + fileName.decode(), 'wb') as f:
+		while 1:
+				print(data)
+				data = _connectionSocket.recv(1024)
+				if not data:
+					break
+				f.write(data)
+		f.close()
+	print(_username + ' added a file named ' + fileName)
+	return 0
+
+def DownloadFile():
 	return 0
 
 def EditFile():
-	print(_username + ' edited a File')
+	global _username, _connectionSocket, _folder, _delimiter
+	oldFile = ReceiveMessage(_connectionSocket)
+	newFile = ReceiveMessage(_connectionSocket)
+	if(AuthorizeFolder()):
+		os.system('mv ' + _folder + '/' + oldFile + ' ' + _folder + '/' + newFile)
+		print(_username + ' renamed ' + oldFile + ' to ' + newFile)
+		SendMessage('Everything went well. ', _connectionSocket)
+	else:
+		SendMessage('You are not authorized to do this. ', _connectionSocket)
 	return 0
 
 def RemoveFile():
-	print(_username + ' removed a file')
+	global _username, _connectionSocket, _folder, _delimiter
+	removedFile = ReceiveMessage(_connectionSocket)
+	if(AuthorizeFolder()):
+		os.system('rm ' + _folder + '/' + removedFile)
+		print(_username + ' removed a file named ' + removedFile)
+		SendMessage('Everything went well. ', _connectionSocket)
+	else:
+		SendMessage('You are not authorized to do this. ', _connectionSocket)
 	return 0
 
 def MoveFile():
-	print(_username + ' moved a file')
+	global _username, _connectionSocket, _folder, _delimiter
+	fileName = ReceiveMessage(_connectionSocket)
+	newFolder = ReceiveMessage(_connectionSocket)
+	if(AuthorizeFolder()):
+		os.system('mv ' + _folder + '/' + fileName + ' ' + _folder + '/' + newFolder + '/' + fileName)
+		print(_username + ' moved ' + fileName + ' to ' + newFolder)
+		SendMessage('Everything went well. ', _connectionSocket)
+	else:
+		SendMessage('You are not authorized to do this. ', _connectionSocket)		
 	return 0
 
 def AddFolder():
@@ -151,7 +214,6 @@ def AddFolder():
 		SendMessage('Everything went well. ', _connectionSocket)
 	else:
 		SendMessage('You are not authorized to do this. ', _connectionSocket)
-	return 0
 	return 0
 
 def RemoveFolder():
@@ -184,6 +246,8 @@ def ExecuteCommand(command):
 		AddFile()
 	elif (command == 'editFile'):
 		EditFile()
+	elif (command == 'downloadFile'):
+		DownloadFile()
 	elif (command == 'removeFile'):
 		RemoveFile()
 	elif (command == 'moveFile'):
