@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 import socket
 import os
+import time
 
 #Client functions
 def InputUsernameAndPass():
@@ -48,7 +49,11 @@ def PrintMenu():
 	print('Press 6 to Add Folder')
 	print('Press 7 to Remove Folder')
 	print('Press 8 to Share This Folder')
-	print('Press 9 to End Connection')
+	print('Press 9 to Open a Folder')
+	print('Press 10 to List the Itens in a Folder')
+	print('Press 11 to Access Another Users Folder')
+	print('Press 12 to End Connection')
+
 
 def ClientCommandActionsAndString(command):
 	global _stillConnected, _socket, _folder, _delimiter
@@ -64,10 +69,11 @@ def ClientCommandActionsAndString(command):
    			print('Sent ',repr(l))
    			l = f.read(1024)
 		f.close()
-		return 0
+		os.system('clear')
 	
 	elif (command ==  '2'):
 		realCommand ='downloadFile'
+		os.system('clear')
 		SendMessage(realCommand, _socket)
 
 	elif (command ==  '3'):
@@ -76,12 +82,14 @@ def ClientCommandActionsAndString(command):
 		oldFile = raw_input('Which file you want to rename? ')
 		SendMessage(oldFile, _socket)
 		newFile = raw_input('What is the new name?')
+		os.system('clear')
 		SendMessage(newFile, _socket)
 
 	elif (command ==  '4'):
 		realCommand ='removeFile'
 		SendMessage(realCommand, _socket)
 		removeFile = raw_input('Which file you want to remove? ')
+		os.system('clear')
 		SendMessage(removeFile, _socket)
 
 	elif (command ==  '5'):
@@ -90,6 +98,7 @@ def ClientCommandActionsAndString(command):
 		fileName = raw_input('Which file you want to move? ')
 		SendMessage(fileName, _socket)
 		newFolder = raw_input('Where do you want to move? ')
+		os.system('clear')
 		SendMessage(newFolder, _socket)
 
 	elif (command ==  '6'):
@@ -97,6 +106,7 @@ def ClientCommandActionsAndString(command):
 		SendMessage(realCommand, _socket)
 		folder = raw_input('What is the name of the folder you want to add? ')
 		message = folder + _delimiter + _folder
+		os.system('clear')
 		SendMessage(message, _socket)
 
 	elif (command ==  '7'):
@@ -104,6 +114,7 @@ def ClientCommandActionsAndString(command):
 		SendMessage(realCommand, _socket)
 		folder = raw_input('What folder you want to remove? ')
 		message = folder + _delimiter + _folder
+		os.system('clear')
 		SendMessage(message, _socket)
 
 	elif (command ==  '8'):
@@ -111,17 +122,43 @@ def ClientCommandActionsAndString(command):
 		SendMessage(realCommand, _socket)
 		user = raw_input('Who you want to share with? ')
 		message = user + _delimiter + _folder
+		os.system('clear')
 		SendMessage(message, _socket)
 
 	elif (command ==  '9'):
+		realCommand = 'openFolder'
+		SendMessage(realCommand, _socket)
+		folder = raw_input('Which folder you want to open? ')
+		SendMessage(folder, _socket)
+		os.system('clear')
+
+	elif (command ==  '10'):
+		realCommand = 'listFolder'
+		os.system('clear')
+		SendMessage(realCommand, _socket)
+		rcvMessage = ReceiveMessage(_socket)
+		itens = rcvMessage.split(',')
+		print('The files in this folder are: ')
+		for item in itens:
+			print(item)
+
+	elif (command ==  '11'):
+		realCommand = 'accessAnotherUser'
+		os.system('clear')
+		SendMessage(realCommand, _socket)
+		user = raw_input('Which users folder you want to access? ')
+		SendMessage(user, _socket)
+
+	elif (command ==  '12'):
 		_stillConnected = 0
 		realCommand = 'endConnection'
+		os.system('clear')
 		SendMessage(realCommand, _socket)
 
 	return 0
 
 def CallClient():
-	global _port, _client, _socket, _stillConnected
+	global _port, _client, _socket, _stillConnected, report
 	SetSocket()
 	print('You are the client')
 	_client = ('', _port)
@@ -131,7 +168,6 @@ def CallClient():
 		PrintMenu()
 		command = raw_input('Tell us your command:')
 		realCommand = ClientCommandActionsAndString(command)
-		os.system('clear')
 		report = ReceiveMessage(_socket)
 		print(report)
 
@@ -211,6 +247,9 @@ def AddFolder():
 	if (AuthorizeFolder()):
 		os.system('mkdir  ' + _folder + '/' + createFolder)
 		print(_username + ' added ' + createFolder + ' folder')
+		file = open(_folder + '/' + createFolder +  "/acc.txt", "a")
+		file.write(_username + "\n")
+		file.close()
 		SendMessage('Everything went well. ', _connectionSocket)
 	else:
 		SendMessage('You are not authorized to do this. ', _connectionSocket)
@@ -240,6 +279,41 @@ def ShareFolder():
 		SendMessage('You are not authorized to do this. ', _connectionSocket)
 	return 0;
 
+def OpenFolder():
+	global _folder, _connectionSocket
+	if(AuthorizeFolder()):
+		folder = ReceiveMessage(_connectionSocket)
+		_folder = _folder + '/' + folder
+		SendMessage('Everything went well. ', _connectionSocket)
+	else:
+		SendMessage('You are not authorized to do this. ', _connectionSocket)
+	return 0;
+
+def ListFolder():
+	global _folder, _connectionSocket, _username
+	if(AuthorizeFolder()):
+		itens = os.listdir(_folder)
+		allItens = ''
+		for item in itens:
+			allItens = item + ',' + allItens
+		SendMessage(allItens, _connectionSocket)
+		print(_username + ' listed all files in ' + _folder)
+		time.sleep(0.1)
+		SendMessage('Everything went well. ', _connectionSocket)
+	else:
+		SendMessage('You are not authorized to do this. ', _connectionSocket)
+	return 0;
+
+def AccessAnotherUserFolder():
+	global _folder, _connectionSocket
+	userFolder = ReceiveMessage(_connectionSocket)
+	if (os.system("cd " + userFolder) == 0):
+		_folder = userFolder
+		SendMessage('Everything went well.', _connectionSocket)
+	else:
+		SendMessage('There is no such user.', _connectionSocket)
+	return 0
+
 def ExecuteCommand(command):
 	global _connectionSocket
 	if (command == 'addFile'):
@@ -258,8 +332,14 @@ def ExecuteCommand(command):
 		RemoveFolder()
 	elif (command ==  'shareFolder'):
 		ShareFolder()
+	elif (command == 'openFolder'):
+		OpenFolder()
+	elif (command == 'listFolder'):
+		ListFolder()
 	elif (command == 'endConnection'):
 		EndConnection()
+	elif(command == 'accessAnotherUser'):
+		AccessAnotherUserFolder()
 	else:
 		SendMessage('Not a valid command', _connectionSocket)
 	return 0
