@@ -41,18 +41,17 @@ def Login():
 
 
 def PrintMenu():
-	print('Press 1 to Upload a File')
-	print('Press 2 to Download a File')
-	print('Press 3 to Edit File')
-	print('Press 4 to Remove File')
-	print('Press 5 to Move File')
-	print('Press 6 to Add Folder')
-	print('Press 7 to Remove Folder')
-	print('Press 8 to Share This Folder')
-	print('Press 9 to Open a Folder')
-	print('Press 10 to List the Itens in a Folder')
-	print('Press 11 to Access Another Users Folder')
-	print('Press 12 to End Connection')
+	options = ["File Options", "Folder Options", "Connection and User Options"]
+	data = ([
+			["1 - Upload"  , "6  - Add"              , "11 - Acess Another User's File"],
+     		["2 - Download", "7  - Remove"           , "12 - End Connection"           ],
+         	["3 - Rename"  , "8  - Share This Folder", ""                              ],
+         	["4 - Remove"  , "9  - Open a Folder"    , ""                              ],
+         	["5 - Move"    , "10 - List The Files"  , ""                               ]
+         	])
+	print('|%-23s|%-23s|%-23s' % (options[0], options[1], options[2]))
+	for option in data:
+		print('|%-23s|%-23s|%-23s' % (option[0], option[1], option[2]))
 
 
 def ClientCommandActionsAndString(command):
@@ -80,7 +79,7 @@ def ClientCommandActionsAndString(command):
 		SendMessage(realCommand, _socket)
 		oldFile = raw_input('Which file you want to rename? ')
 		SendMessage(oldFile, _socket)
-		newFile = raw_input('What is the new name?')
+		newFile = raw_input('What is the new name?' )
 		os.system('clear')
 		SendMessage(newFile, _socket)
 
@@ -212,7 +211,6 @@ def DownloadFile():
 	if(AuthorizeFolder()):
 		time.sleep(0.1)
 		UploadFile(fileName, _connectionSocket, _folder + '/')
-		print('made it here')
 		SendMessage('Everything went well. ', _connectionSocket)
 	else:
 		SendMessage('You are not authorized to do this. ', _connectionSocket)
