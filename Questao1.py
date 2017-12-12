@@ -56,25 +56,24 @@ def PrintMenu():
 
 
 def ClientCommandActionsAndString(command):
-	global _stillConnected, _socket, _folder, _delimiter
+	global _stillConnected, _socket, _folder, _delimiter, _unauthorized
 	if (command ==  '1'):
 		realCommand = 'addFile'
 		SendMessage(realCommand, _socket)
-		fileName = raw_input ('What is the file name? ')
+		fileName = raw_input ('What is the file name? (Write the whole address) ')
 		SendMessage(fileName, _socket)
-		f = open(fileName,'rb')
-		l = f.read(1024)
-		while (l):
-   			_socket.send(l)
-   			print('Sent ',repr(l))
-   			l = f.read(1024)
-		f.close()
+		time.sleep(0.2)
+		UploadFile(fileName, _socket, "")
 		os.system('clear')
 	
 	elif (command ==  '2'):
 		realCommand ='downloadFile'
-		os.system('clear')
 		SendMessage(realCommand, _socket)
+		downloadFile = raw_input('Which file you want to download from this folder? ')
+		SendMessage(downloadFile, _socket)
+		ReceiveFile(downloadFile, _socket, "downloads/")
+		os.system('clear')
+
 
 	elif (command ==  '3'):
 		realCommand ='editFile'
@@ -137,10 +136,16 @@ def ClientCommandActionsAndString(command):
 		os.system('clear')
 		SendMessage(realCommand, _socket)
 		rcvMessage = ReceiveMessage(_socket)
-		itens = rcvMessage.split(',')
-		print('The files in this folder are: ')
-		for item in itens:
-			print(item)
+		if (rcvMessage == "You are not authorized to do this. "):
+			_unauthorized = 1
+			print(rcvMessage)
+
+		else:
+			itens = rcvMessage.split(',')
+			print('The files in this folder are: ')
+			for item in itens:
+				print(item)
+		
 
 	elif (command ==  '11'):
 		realCommand = 'accessAnotherUser'
@@ -158,7 +163,7 @@ def ClientCommandActionsAndString(command):
 	return 0
 
 def CallClient():
-	global _port, _client, _socket, _stillConnected, report
+	global _port, _client, _socket, _stillConnected, report, _unauthorized
 	SetSocket()
 	print('You are the client')
 	_client = ('', _port)
@@ -168,8 +173,10 @@ def CallClient():
 		PrintMenu()
 		command = raw_input('Tell us your command:')
 		realCommand = ClientCommandActionsAndString(command)
-		report = ReceiveMessage(_socket)
-		print(report)
+		if (_unauthorized == 0):
+			report = ReceiveMessage(_socket)
+			print(report)
+		_unauthorized = 0
 
 
 #Server functions
@@ -189,21 +196,26 @@ def AuthorizeFolder():
 	return 0
 
 def AddFile():
-	global _connectionSocket, _delimiter, _folder
+	global _connectionSocket, _folder
 	fileName = ReceiveMessage(_connectionSocket)
-	data = _connectionSocket.recv(1024)
-	with open(_folder + '/' + fileName.decode(), 'wb') as f:
-		while 1:
-				print(data)
-				data = _connectionSocket.recv(1024)
-				if not data:
-					break
-				f.write(data)
-		f.close()
-	print(_username + ' added a file named ' + fileName)
+	if(AuthorizeFolder()):
+		ReceiveFile(fileName, _connectionSocket, _folder + "/")
+		SendMessage('Everything went well. ', _connectionSocket)
+	else:
+		SendMessage('You are not authorized to do this. ', _connectionSocket)
+
 	return 0
 
 def DownloadFile():
+	global _connectionSocket, _folder
+	fileName = ReceiveMessage(_connectionSocket)
+	if(AuthorizeFolder()):
+		time.sleep(0.1)
+		UploadFile(fileName, _connectionSocket, _folder + '/')
+		print('made it here')
+		SendMessage('Everything went well. ', _connectionSocket)
+	else:
+		SendMessage('You are not authorized to do this. ', _connectionSocket)
 	return 0
 
 def EditFile():
@@ -320,7 +332,7 @@ def ExecuteCommand(command):
 		AddFile()
 	elif (command == 'editFile'):
 		EditFile()
-	elif (command == 'downloadFile'):
+	elif (command == 'downloadFile'): 
 		DownloadFile()
 	elif (command == 'removeFile'):
 		RemoveFile()
@@ -436,7 +448,7 @@ def AmIServer():
 	try:
 		_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR , 1)
 		_socket.bind(('', _port))
-		_socket.listen(1)
+		_socket.listen(10)
 		return 1
 
 	except Exception:
@@ -455,8 +467,46 @@ def EndConnection():
 	_socket.close()
 	_connectionSocket.close()
 
+def UploadFile(fileName, SendSocket, folder):
+	global uploadPort, uploadHost, uploadSocket, uploadConnectionSocket
+	skt = socket.socket()
+	uploadHost = socket.gethostbyname("")
+	uploadPort = 15500
+
+	skt.connect((uploadHost, uploadPort))
+	file = open(folder + fileName, 'rb')
+	bytes = file.read(1024)
+	while (bytes):
+	    skt.send(bytes)
+	    bytes = file.read(1024)
+	file.close()
+	skt.close()
+	time.sleep(0.1)
+	return 0
+
+def ReceiveFile(fileName, ReceiveSocket, folder):
+	global uploadPort, uploadHost, uploadSocket, uploadConnectionSocket
+	skt = socket.socket()
+	uploadHost = socket.gethostbyname("")
+	uploadPort = 15500
+	skt.bind((uploadHost, uploadPort))
+	file = open(folder + fileName, 'wb')
+	skt.listen(5)
+
+	while True:
+	    c, addr = skt.accept()
+	    bytes = c.recv(1024)
+	    while (bytes):
+	        file.write(bytes)
+	        bytes = c.recv(1024)
+	    file.close()
+	    c.close()
+	    break
+	return 0
+
 #Program:
-global _username, _password, _delimiter, _stillConnected, _folder
+global _username, _password, _delimiter, _stillConnected, _folder, _unauthorized
+_unauthorized = 0
 _stillConnected = 1
 _username = ''
 _password = ''
