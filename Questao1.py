@@ -14,6 +14,7 @@ def TryToReg():
 	global _socket, _delimiter
 	message = 'Register' + _delimiter
 	SendMessage(message, _socket)
+	time.sleep(0.1)
 	message = InputUsernameAndPass()
 	SendMessage(message, _socket)
 	resultMessage = ReceiveMessage (_socket)
@@ -55,23 +56,33 @@ def PrintMenu():
 
 
 def ClientCommandActionsAndString(command):
-	global _stillConnected, _socket, _folder, _delimiter, _unauthorized
+	global _stillConnected, _socket, _folder, _delimiter, _displayReport, _username
 	if (command ==  '1'):
 		realCommand = 'addFile'
 		SendMessage(realCommand, _socket)
 		fileName = raw_input ('What is the file name? (Write the whole address) ')
 		SendMessage(fileName, _socket)
-		time.sleep(0.2)
-		UploadFile(fileName, _socket, "")
+		rcvMessage = ReceiveMessage(_socket)
+		_displayReport = 0
+		if (rcvMessage != "You are not authorized to do this. "):
+			time.sleep(0.2)
+			UploadFile(fileName, _socket, "")
 		os.system('clear')
+		print(rcvMessage)
+
 	
 	elif (command ==  '2'):
 		realCommand ='downloadFile'
 		SendMessage(realCommand, _socket)
 		downloadFile = raw_input('Which file you want to download from this folder? ')
 		SendMessage(downloadFile, _socket)
-		ReceiveFile(downloadFile, _socket, "downloads/")
+		rcvMessage = ReceiveMessage(_socket)
+		_displayReport = 0
+		if (rcvMessage != "You are not authorized to do this. "):
+			ReceiveFile(downloadFile, _socket, "downloads/")
 		os.system('clear')
+		print(rcvMessage)
+
 
 
 	elif (command ==  '3'):
@@ -103,7 +114,7 @@ def ClientCommandActionsAndString(command):
 		realCommand ='addFolder'
 		SendMessage(realCommand, _socket)
 		folder = raw_input('What is the name of the folder you want to add? ')
-		message = folder + _delimiter + _folder
+		message = folder
 		os.system('clear')
 		SendMessage(message, _socket)
 
@@ -111,7 +122,7 @@ def ClientCommandActionsAndString(command):
 		realCommand = 'removeFolder'
 		SendMessage(realCommand, _socket)
 		folder = raw_input('What folder you want to remove? ')
-		message = folder + _delimiter + _folder
+		message = folder
 		os.system('clear')
 		SendMessage(message, _socket)
 
@@ -119,7 +130,7 @@ def ClientCommandActionsAndString(command):
 		realCommand = 'shareFolder'
 		SendMessage(realCommand, _socket)
 		user = raw_input('Who you want to share with? ')
-		message = user + _delimiter + _folder
+		message = user
 		os.system('clear')
 		SendMessage(message, _socket)
 
@@ -136,7 +147,7 @@ def ClientCommandActionsAndString(command):
 		SendMessage(realCommand, _socket)
 		rcvMessage = ReceiveMessage(_socket)
 		if (rcvMessage == "You are not authorized to do this. "):
-			_unauthorized = 1
+			_displayReport = 0
 			print(rcvMessage)
 
 		else:
@@ -144,13 +155,14 @@ def ClientCommandActionsAndString(command):
 			print('The files in this folder are: ')
 			for item in itens:
 				print(item)
-		
 
 	elif (command ==  '11'):
 		realCommand = 'accessAnotherUser'
 		os.system('clear')
 		SendMessage(realCommand, _socket)
-		user = raw_input('Which users folder you want to access? ')
+		user = raw_input('Which users folder you want to access? (Leave blank to go to your root) ')
+		if(user == ''):
+			user = _username
 		SendMessage(user, _socket)
 
 	elif (command ==  '12'):
@@ -159,10 +171,14 @@ def ClientCommandActionsAndString(command):
 		os.system('clear')
 		SendMessage(realCommand, _socket)
 
+	else:
+		print('Invalid Command')
+		_displayReport = 1
+
 	return 0
 
 def CallClient():
-	global _port, _client, _socket, _stillConnected, report, _unauthorized
+	global _port, _client, _socket, _stillConnected, report, _displayReport
 	SetSocket()
 	print('You are the client')
 	_client = ('', _port)
@@ -172,10 +188,10 @@ def CallClient():
 		PrintMenu()
 		command = raw_input('Tell us your command:')
 		realCommand = ClientCommandActionsAndString(command)
-		if (_unauthorized == 0):
+		if (_displayReport == 1):
 			report = ReceiveMessage(_socket)
 			print(report)
-		_unauthorized = 0
+		_displayReport = 1
 
 
 #Server functions
@@ -198,8 +214,8 @@ def AddFile():
 	global _connectionSocket, _folder
 	fileName = ReceiveMessage(_connectionSocket)
 	if(AuthorizeFolder()):
-		ReceiveFile(fileName, _connectionSocket, _folder + "/")
 		SendMessage('Everything went well. ', _connectionSocket)
+		ReceiveFile(fileName, _connectionSocket, _folder + "/")
 	else:
 		SendMessage('You are not authorized to do this. ', _connectionSocket)
 
@@ -209,9 +225,9 @@ def DownloadFile():
 	global _connectionSocket, _folder
 	fileName = ReceiveMessage(_connectionSocket)
 	if(AuthorizeFolder()):
+		SendMessage('Everything went well. ', _connectionSocket)
 		time.sleep(0.1)
 		UploadFile(fileName, _connectionSocket, _folder + '/')
-		SendMessage('Everything went well. ', _connectionSocket)
 	else:
 		SendMessage('You are not authorized to do this. ', _connectionSocket)
 	return 0
@@ -253,7 +269,7 @@ def MoveFile():
 
 def AddFolder():
 	global _username, _connectionSocket, _folder, _delimiter
-	createFolder, _folder = ReceiveMessage(_connectionSocket).split(_delimiter)
+	createFolder = ReceiveMessage(_connectionSocket)
 	if (AuthorizeFolder()):
 		os.system('mkdir  ' + _folder + '/' + createFolder)
 		print(_username + ' added ' + createFolder + ' folder')
@@ -267,7 +283,7 @@ def AddFolder():
 
 def RemoveFolder():
 	global _username, _connectionSocket, _folder, _delimiter
-	removeFolder, _folder = ReceiveMessage(_connectionSocket).split(_delimiter)
+	removeFolder = ReceiveMessage(_connectionSocket)
 	if (AuthorizeFolder()):
 		os.system('rm -rf ' + _folder + '/' + removeFolder)
 		print(_username + ' removed ' + removeFolder + ' folder')
@@ -278,9 +294,7 @@ def RemoveFolder():
 
 def ShareFolder():
 	global _username, _connectionSocket, _folder, _delimiter
-	newUser, _folder = ReceiveMessage(_connectionSocket).split(_delimiter)
-	print(newUser+ 'new ')
-	print(_folder+ 'folder ')
+	newUser = ReceiveMessage(_connectionSocket)
 	if (AuthorizeFolder()):
 		AddUserToAcc(newUser)
 		print(_username + ' shared ' + _folder + ' with ' + newUser)
@@ -401,17 +415,18 @@ def Register():
 def Authorize():
 	global _connectionSocket, _username, _password, _delimiter, _folder
 
-	message = ReceiveMessage(_connectionSocket)
-	if (message == 'Register'+ _delimiter):
-		if (Register() == 0):
-			SendMessage('User already registered.', _connectionSocket)
-			return 0
-
 	while (IsTheUserAuthorized(_username, _password) == 0):
+		message = ReceiveMessage(_connectionSocket)
+		if (message == 'Register'+ _delimiter):
+			if (Register() == 0):
+				SendMessage('User already registered.', _connectionSocket)
+			else:
+				SendMessage('You are logged in.', _connectionSocket)
+				return 0 
+		else:
 			_username, _password = GetUsernameAndPassword(message)
 			if (IsTheUserAuthorized(_username, _password) == 0):
 				SendMessage('Wrong username or password.', _connectionSocket)
-				message = ReceiveMessage(_connectionSocket)
 
 	print(_username + ' has just logged in.')
 	_folder = _username
@@ -503,8 +518,8 @@ def ReceiveFile(fileName, ReceiveSocket, folder):
 	return 0
 
 #Program:
-global _username, _password, _delimiter, _stillConnected, _folder, _unauthorized
-_unauthorized = 0
+global _username, _password, _delimiter, _stillConnected, _folder, _displayReport
+_displayReport = 1
 _stillConnected = 1
 _username = ''
 _password = ''
