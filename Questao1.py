@@ -2,6 +2,7 @@
 import socket
 import os
 import time
+import shutil
 
 #Client functions
 def InputUsernameAndPass():
@@ -172,8 +173,9 @@ def ClientCommandActionsAndString(command):
 		SendMessage(realCommand, _socket)
 
 	else:
+		os.system('clear')
 		print('Invalid Command')
-		_displayReport = 1
+		_displayReport = 0
 
 	return 0
 
@@ -237,7 +239,7 @@ def EditFile():
 	oldFile = ReceiveMessage(_connectionSocket)
 	newFile = ReceiveMessage(_connectionSocket)
 	if(AuthorizeFolder()):
-		os.system('mv ' + _folder + '/' + oldFile + ' ' + _folder + '/' + newFile)
+		os.rename(_folder + '/' + oldFile, _folder + '/' + newFile)
 		print(_username + ' renamed ' + oldFile + ' to ' + newFile)
 		SendMessage('Everything went well. ', _connectionSocket)
 	else:
@@ -248,7 +250,7 @@ def RemoveFile():
 	global _username, _connectionSocket, _folder, _delimiter
 	removedFile = ReceiveMessage(_connectionSocket)
 	if(AuthorizeFolder()):
-		os.system('rm ' + _folder + '/' + removedFile)
+		os.remove(_folder + '/' + removedFile)
 		print(_username + ' removed a file named ' + removedFile)
 		SendMessage('Everything went well. ', _connectionSocket)
 	else:
@@ -260,7 +262,7 @@ def MoveFile():
 	fileName = ReceiveMessage(_connectionSocket)
 	newFolder = ReceiveMessage(_connectionSocket)
 	if(AuthorizeFolder()):
-		os.system('mv ' + _folder + '/' + fileName + ' ' + _folder + '/' + newFolder + '/' + fileName)
+		os.rename(_folder + '/' + fileName, _folder + '/' + newFolder + '/' + fileName)
 		print(_username + ' moved ' + fileName + ' to ' + newFolder)
 		SendMessage('Everything went well. ', _connectionSocket)
 	else:
@@ -271,7 +273,7 @@ def AddFolder():
 	global _username, _connectionSocket, _folder, _delimiter
 	createFolder = ReceiveMessage(_connectionSocket)
 	if (AuthorizeFolder()):
-		os.system('mkdir  ' + _folder + '/' + createFolder)
+		os.makedirs(_folder + '/' + createFolder)
 		print(_username + ' added ' + createFolder + ' folder')
 		file = open(_folder + '/' + createFolder +  "/acc.txt", "a")
 		file.write(_username + "\n")
@@ -285,7 +287,7 @@ def RemoveFolder():
 	global _username, _connectionSocket, _folder, _delimiter
 	removeFolder = ReceiveMessage(_connectionSocket)
 	if (AuthorizeFolder()):
-		os.system('rm -rf ' + _folder + '/' + removeFolder)
+		shutil.rmtree(_folder + '/' + removeFolder, ignore_errors=True)
 		print(_username + ' removed ' + removeFolder + ' folder')
 		SendMessage('Everything went well. ', _connectionSocket)
 	else:
@@ -331,7 +333,7 @@ def ListFolder():
 def AccessAnotherUserFolder():
 	global _folder, _connectionSocket
 	userFolder = ReceiveMessage(_connectionSocket)
-	if (os.system("cd " + userFolder) == 0):
+	if (os.path.exists(userFolder)):
 		_folder = userFolder
 		SendMessage('Everything went well.', _connectionSocket)
 	else:
@@ -402,10 +404,10 @@ def Register():
 	message = ReceiveMessage(_connectionSocket)
 	_username, _password = GetUsernameAndPassword(message)
 
-	if (os.system("cd " + _username)!= 0):
+	if (not os.path.exists(_username)):
 		WriteUserAndPassInAcc()
 		_folder = _username
-		os.system("mkdir " + _folder)
+		os.makedirs(_folder)
 		AddUserToAcc(_username)
 		print(_username + " registered and logged in.")
 		return 1
