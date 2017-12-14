@@ -100,22 +100,23 @@ def PrintMessage(rcvdDatagram, client):
 def temporizador():
 	global messages
 	i = 0
-	while True:
-		tupla = messages[i]
-		msg_timer = tupla[0]
-		timer = msg_timer[1]
-		atual = time.clock()
-		if atual - timer > 0.1:
-			SendPackage(msg_timer[0], tupla[1])
-			msg_timer[1] = atual
-			tupla[0] = msg_timer
-			messages[i] = aux
+	while True:		
+		if len(messages) > 0:
+			tupla = messages[i]
+			msg_timer = tupla[0]
+			timer = msg_timer[1]
+			atual = time.clock()
+			if (atual - timer) > 0.5:
+				print "estourou"
+				SendPackage(msg_timer[0], tupla[1])
+				msg_timer = (msg_timer[0],atual)
+				tupla = (msg_timer, tupla[1])
+				messages[i] = tupla
 
-		i = i+1		
-			
-		if i == len(messages):
-			i=0
-
+			i = i+1		
+				
+			if i >= len(messages):
+				i=0
 
 def ReceiveMessage(name,s):
 	while True:
@@ -164,6 +165,8 @@ conversation = raw_input("Do you want start a conversation(y/n)")
 
 #for i in range(5):
 threading.Thread(target=ReceiveMessage, args=("rec",_socket)).start()
+threading.Thread(target=temporizador, args=()).start()
+
 
 AmIServer()
 CallServer()
