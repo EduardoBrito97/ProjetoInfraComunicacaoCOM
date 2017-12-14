@@ -3,6 +3,7 @@ import socket
 import os
 import time
 import shutil
+import threading
 
 #Client functions
 def InputUsernameAndPass():
@@ -165,6 +166,7 @@ def ClientCommandActionsAndString(command, _stillConnected, _socket, _folder, _d
 
 	elif (command ==  '12'):
 		_stillConnected = 0
+		_displayReport = 0
 		realCommand = 'endConnection'
 		os.system('clear')
 		SendMessage(realCommand, _socket)
@@ -176,17 +178,26 @@ def ClientCommandActionsAndString(command, _stillConnected, _socket, _folder, _d
 
 	return _displayReport, _stillConnected
 
-def CallClient(_socket):
-	global _delimiter
-	_port, _client, _socket, _connectionSocket = SetSocket()
-	print('You are the client')
+def GetPortAndConnect():
+	_port, _client, _socket, _connectionSocket = SetSocket(12000)
 	_client = ('', _port)
 	_socket.connect(_client)
+	_port = int(ReceiveMessage(_socket))
+	_port, _client, _socket, _connectionSocket = SetSocket(_port)
+	_client = ('', _port)
+	time.sleep(0.2)
+	_socket.connect(_client)
+	return _socket
+
+def CallClient(_socket):
+	global _delimiter
+	print('You are the client')
 	_stillConnected = 1
 	_username = ''
 	_password = ''
 	_folder = ''
 	_displayReport = 1
+	_socket = GetPortAndConnect()
 	_username, _password, _folder = Login(_socket, _username, _password, _delimiter, _folder)
 	while _stillConnected:
 		PrintMenu()
@@ -196,6 +207,8 @@ def CallClient(_socket):
 			report = ReceiveMessage(_socket)
 			print(report)
 		_displayReport = 1
+	EndConnection(_socket)
+
 
 
 #Server functions
@@ -357,7 +370,7 @@ def ExecuteCommand(command, _connectionSocket, _username, _password, _folder):
 	elif (command == 'listFolder'):
 		_folder = ListFolder(_folder, _connectionSocket, _username)
 	elif (command == 'endConnection'):
-		_stillConnected = EndConnection(_socket, _connectionSocket, _stillConnected)
+		_stillConnected = 0
 	elif(command == 'accessAnotherUser'):
 		_folder = AccessAnotherUserFolder(_folder, _connectionSocket)
 	else:
@@ -436,26 +449,53 @@ def SendMessage (message, socket):
 def ReceiveMessage(socket):
 	return socket.recv(1024)
 
-def CallServer(_socket):
-	global _delimiter
-	print('You are the server')
+def CreateNewPortAndSend(actualPort, _socket):
 	_connectionSocket, _client = _socket.accept()
+	SendMessage(str(actualPort), _connectionSocket)
+	time.sleep(0.1)
+	_port, _client, _socket, _connectionSocket = SetSocket(actualPort)
+	_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR , 1)
+	_socket.bind(('', _port))
+	_socket.listen(10)
+	_connectionSocket, _client = _socket.accept()
+	return _connectionSocket
+
+def ServerThread(_connectionSocket):
+	global numbOfThreads
 	autorizar = 0
 	_username = ''
 	_password = '' 
 	_folder = '' 
 	_stillConnected = 1
-
 	while (autorizar == 0):
+		time.sleep(0.1)
 		_username, _folder, autorizar, _password = Authorize(_connectionSocket, _username, _password, _delimiter, _folder)
 	while _stillConnected:
+		time.sleep(0.1)
 		command = ReceiveMessage(_connectionSocket)
 		_folder, _stillConnected = ExecuteCommand(command, _connectionSocket, _username, _password, _folder)
+	print(_username + ' logged out.')
+	numbOfThreads = numbOfThreads - 1
+
+
+def CallServer(_socket):
+	global _delimiter, numbOfThreads
+	print('You are the server')
+	ActualPort = 40000
+	numbOfThreads = 0
+	while 1:
+		time.sleep(0.3)
+		ActualPort = ActualPort + 1000
+		print(numbOfThreads)
+		_connectionSocket = CreateNewPortAndSend(ActualPort, _socket)
+		threads = []
+		t = threading.Thread(target=ServerThread, args=(_connectionSocket, ))
+		threads.append(t)
+		t.start()
 
 
 #Neutral functions
 def AmIServer(_socket):
-	
 	try:
 		_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR , 1)
 		_socket.bind(('', _port))
@@ -465,18 +505,15 @@ def AmIServer(_socket):
 	except Exception:
 		return _socket, 0
 
-def SetSocket():
-	_port = 12000
+def SetSocket(_port):
 	_client = ('', _port)
 	_socket = socket.socket(socket.AF_INET,socket.SOCK_STREAM)
 	_connectionSocket = socket.socket()
 	return _port, _client, _socket, _connectionSocket
 
-def EndConnection(_socket, _connectionSocket, _stillConnected):
+def EndConnection(_socket):
 	_stillConnected = 0
 	_socket.close()
-	_connectionSocket.close()
-	return _socket, _connectionSocket, _stillConnected
 
 def UploadFile(fileName, SendSocket, folder):
 	global uploadPort, uploadHost, uploadSocket, uploadConnectionSocket
@@ -502,7 +539,7 @@ def ReceiveFile(fileName, ReceiveSocket, folder):
 	uploadPort = 15500
 	skt.bind((uploadHost, uploadPort))
 	file = open(folder + fileName, 'wb')
-	skt.listen(5)
+	skt.listen(50)
 
 	while True:
 	    c, addr = skt.accept()
@@ -522,11 +559,9 @@ _username = ''
 _password = ''
 _delimiter = '@#!@!#!@!$!#!#@#!!'
 _folder = ' '
-_port, _client, _socket, _connectionSocket = SetSocket()
+_port, _client, _socket, _connectionSocket = SetSocket(12000)
 _socket, amIServer = AmIServer(_socket)
 if amIServer:
 	CallServer(_socket)
 else:
 	CallClient(_socket)
-
-_socket, _connectionSocket, _stillConnected = EndConnection(_socket, _connectionSocket,_stillConnected)
