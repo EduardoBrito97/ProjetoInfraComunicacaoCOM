@@ -129,7 +129,7 @@ def CallServer():
 			message = raw_input()
 			_lastMessage.append(message)
 			_myacknum = _myacknum + 1
-			#print str(len(_senders))
+			print str(len(_senders))
 			for i in _senders:
 				SendPackage(message, i, _myacknum, _username)
 
@@ -138,17 +138,17 @@ def AmIServer():
 	global _socket
 	global _senders
 	try:
-		_socket.bind(('172.20.18.20', _port))
+		#_socket.bind(('172.20.18.20', _port))
+		_socket.bind(('', _port))
 		return 1
 
 	except Exception:
 
-		_senders = [('172.20.18.20',_port)]
+		_senders = [('',_port)]
 		return 0
 
 #Program:
 _lastMessage = []
-_lastMessage.append('olar')
 _myacknum = 0
 _username = raw_input("What's your name? ")
 _port = 12000
