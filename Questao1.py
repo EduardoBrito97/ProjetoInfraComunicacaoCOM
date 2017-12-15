@@ -318,7 +318,7 @@ def OpenFolder(_folder, _connectionSocket, _username):
 			_folder = _folder + '/' + folder
 			SendMessage('Everything went well. ', _connectionSocket)
 		else:
-			SendMessage('There is no such folder. ')
+			SendMessage('There is no such folder. ', _connectionSocket)
 	else:
 		SendMessage('You are not authorized to do this. ', _connectionSocket)
 	return _folder;
@@ -426,6 +426,7 @@ def Authorize(_connectionSocket, _username, _password, _delimiter, _folder):
 			Reg, _username, _password, _folder = Register(_username, _password, _connectionSocket, _folder)
 			if (Reg == 0):
 				SendMessage('User already registered.', _connectionSocket)
+				_username = ''
 			else:
 				SendMessage('You are logged in.', _connectionSocket)
 				return _username, _folder, 1, _password 
@@ -486,7 +487,6 @@ def CallServer(_socket):
 	while 1:
 		time.sleep(0.3)
 		ActualPort = ActualPort + 1000
-		print(numbOfThreads)
 		_connectionSocket = CreateNewPortAndSend(ActualPort, _socket)
 		threads = []
 		t = threading.Thread(target=ServerThread, args=(_connectionSocket, ))
