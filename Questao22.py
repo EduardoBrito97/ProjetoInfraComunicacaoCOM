@@ -134,22 +134,23 @@ def CallServer(lock):
 			messages.append(buff)
 			lock.release()
 
-def AmIServer():
+def AmIServer(IP):
 	global _socket
 	global _senders
 	try:
-		_socket.bind(('172.20.18.12', _port))
+		_socket.bind((IP, _port))
 		return 1
 
 	except Exception:
 		_socket.bind(('', _port))
-		_senders = [('172.20.18.12',_port)]
+		_senders = [(IP,_port)]
 		return 0
 
 #Program:
 setAck = '0'
 messages = []
-_username = raw_input("What's your name? ")
+_username = raw_input("Seu nome de usuario: ")
+_IP = raw_input(_username + ", digite o IP ao qual voce gostaria de se conectar: ")
 _port = 12000
 _control = 0
 _senders = []
@@ -161,5 +162,5 @@ lock = thread.allocate_lock()
 thread.start_new_thread(ReceiveMessage,("rec",_socket, lock)) 
 thread.start_new_thread(temporizador,(lock, "")) 
 
-AmIServer()
+AmIServer(IP)
 CallServer(lock)
