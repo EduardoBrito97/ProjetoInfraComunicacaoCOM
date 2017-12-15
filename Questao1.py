@@ -180,11 +180,11 @@ def ClientCommandActionsAndString(command, _stillConnected, _socket, _folder, _d
 
 def GetPortAndConnect():
 	_port, _client, _socket, _connectionSocket = SetSocket(12000)
-	_client = ('', _port)
+	_client = ('172.20.4.194', _port)
 	_socket.connect(_client)
 	_port = int(ReceiveMessage(_socket))
 	_port, _client, _socket, _connectionSocket = SetSocket(_port)
-	_client = ('', _port)
+	_client = ('172.20.4.194', _port)
 	time.sleep(0.2)
 	_socket.connect(_client)
 	return _socket
@@ -498,7 +498,7 @@ def CallServer(_socket):
 def AmIServer(_socket):
 	try:
 		_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR , 1)
-		_socket.bind(('', _port))
+		_socket.bind(('172.20.4.194', _port))
 		_socket.listen(10)
 		return _socket, 1
 
@@ -506,7 +506,7 @@ def AmIServer(_socket):
 		return _socket, 0
 
 def SetSocket(_port):
-	_client = ('', _port)
+	_client = ('172.20.4.194', _port)
 	_socket = socket.socket(socket.AF_INET,socket.SOCK_STREAM)
 	_connectionSocket = socket.socket()
 	return _port, _client, _socket, _connectionSocket
@@ -518,7 +518,7 @@ def EndConnection(_socket):
 def UploadFile(fileName, SendSocket, folder):
 	global uploadPort, uploadHost, uploadSocket, uploadConnectionSocket
 	skt = socket.socket()
-	uploadHost = socket.gethostbyname("")
+	uploadHost = socket.gethostbyname("172.20.4.194")
 	uploadPort = 15500
 
 	skt.connect((uploadHost, uploadPort))
@@ -535,7 +535,7 @@ def UploadFile(fileName, SendSocket, folder):
 def ReceiveFile(fileName, ReceiveSocket, folder):
 	global uploadPort, uploadHost, uploadSocket, uploadConnectionSocket
 	skt = socket.socket()
-	uploadHost = socket.gethostbyname("")
+	uploadHost = socket.gethostbyname("172.20.4.194")
 	uploadPort = 15500
 	skt.bind((uploadHost, uploadPort))
 	file = open(folder + fileName, 'wb')
